@@ -8,28 +8,17 @@ jobs:
   releases-matrix:
     name: Release Go Binary
     runs-on: ubuntu-latest
-    permissions:
-        contents: write
-        packages: write
     strategy:
       matrix:
-        goos: [darwin, freebsd, linux, openbsd, windows]
-        goarch: ["386", amd64, arm, arm64]
-        exclude:
-          - goarch: "386"
-            goos: darwin
-          - goarch: arm
-            goos: darwin
-          - goarch: arm64
-            goos: windows
+        goos: [linux, windows, darwin]
+        goarch: [amd64]
     steps:
-    - uses: actions/checkout@v4
-    - uses: wangyoucao577/go-release-action@v1
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        goos: ${{ matrix.goos }}
-        goarch: ${{ matrix.goarch }}
-        goversion: "1.22"
-        project_path: "./cmd/ossint"
-        binary_name: "ossint"
-        extra_files: README.md
+      - uses: actions/checkout@v4
+      - uses: wangyoucao577/go-release-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          goos: ${{ matrix.goos }}
+          goarch: ${{ matrix.goarch }}
+          goversion: "1.22"
+          project_path: "./cmd/ossint"
+          binary_name: "ossint"
