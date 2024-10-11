@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -235,7 +236,7 @@ func makeRequest(url, token string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	return io.ReadAll(resp.Body)
+	return ioutil.ReadAll(resp.Body)
 }
 
 func getRepoFullName(repoURL string) string {
