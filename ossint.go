@@ -1,6 +1,7 @@
 package ossint
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -15,6 +16,8 @@ import (
 	"strings"
 
 	"github.com/aquasecurity/table"
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 )
 
 const (
@@ -76,58 +79,60 @@ func printVersion(out io.Writer) error {
 	return err
 }
 
-func run(username, token string, outStream, errStream io.Writer) error {
+const maxConcurrency = 10
+
+func run(username, token string, outStream, _ io.Writer) error {
+	ctx := context.Background()
+	sem := semaphore.NewWeighted(maxConcurrency)
+	eg, ctx := errgroup.WithContext(ctx)
+
 	prs, err := getUserPRs(username, token)
 	if err != nil {
 		return fmt.Errorf("error getting user PRs: %v", err)
 	}
 
-	for i, pr := range prs {
-		repoFullName := getRepoFullName(pr.RepoURL)
-		stars, err := getRepoStars(repoFullName, token)
-		if err != nil {
-			fmt.Fprintf(errStream, "Error getting stars for repo %s: %v\n", repoFullName, err)
-			continue
-		}
-		prs[i].Repo = repoFullName
-		prs[i].Stars = stars
+	for i := range prs {
+		i := i // https://golang.org/doc/faq#closures_and_goroutines
+		pr := &prs[i]
 
-		status, err := getPRStatus(repoFullName, pr.Number, token)
-		if err != nil {
-			fmt.Fprintf(errStream, "Error getting PR status for %s/%d: %v\n", repoFullName, pr.Number, err)
-			continue
+		if err := sem.Acquire(ctx, 1); err != nil {
+			return fmt.Errorf("failed to acquire semaphore: %v", err)
 		}
-		prs[i].Status = status
 
-		prDetails, err := getPRDetails(repoFullName, pr.Number, token)
-		if err != nil {
-			fmt.Fprintf(errStream, "Error getting PR details for %s/%d: %v\n", repoFullName, pr.Number, err)
-			continue
-		}
-		prs[i].Additions = prDetails.Additions
-		prs[i].Deletions = prDetails.Deletions
-		prs[i].ChangedFiles = prDetails.ChangedFiles
-		prs[i].FileExtensions = prDetails.FileExtensions
+		eg.Go(func() error {
+			defer sem.Release(1)
+
+			repoFullName := getRepoFullName(pr.RepoURL)
+
+			stars, err := getRepoStars(repoFullName, token)
+			if err != nil {
+				return fmt.Errorf("error getting stars for repo %s: %v", repoFullName, err)
+			}
+			pr.Repo = repoFullName
+			pr.Stars = stars
+
+			status, err := getPRStatus(repoFullName, pr.Number, token)
+			if err != nil {
+				return fmt.Errorf("error getting PR status for %s/%d: %v", repoFullName, pr.Number, err)
+			}
+			pr.Status = status
+
+			prDetails, err := getPRDetails(repoFullName, pr.Number, token)
+			if err != nil {
+				return fmt.Errorf("error getting PR details for %s/%d: %v", repoFullName, pr.Number, err)
+			}
+			pr.Additions = prDetails.Additions
+			pr.Deletions = prDetails.Deletions
+			pr.ChangedFiles = prDetails.ChangedFiles
+			pr.FileExtensions = prDetails.FileExtensions
+
+			return nil
+		})
 	}
 
-	for i, pr := range prs {
-		repoFullName := getRepoFullName(pr.RepoURL)
-		stars, err := getRepoStars(repoFullName, token)
-		if err != nil {
-			fmt.Fprintf(errStream, "Error getting stars for repo %s: %v\n", repoFullName, err)
-			continue
-		}
-		prs[i].Repo = repoFullName
-		prs[i].Stars = stars
-
-		status, err := getPRStatus(repoFullName, pr.Number, token)
-		if err != nil {
-			fmt.Fprintf(errStream, "Error getting PR status for %s/%d: %v\n", repoFullName, pr.Number, err)
-			continue
-		}
-		prs[i].Status = status
+	if err := eg.Wait(); err != nil {
+		return err
 	}
-
 	sort.Slice(prs, func(i, j int) bool {
 		return prs[i].Stars > prs[j].Stars
 	})
