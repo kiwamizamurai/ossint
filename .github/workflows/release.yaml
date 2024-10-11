@@ -32,4 +32,4 @@ jobs:
         goversion: "1.22"
         project_path: "./cmd/ossint"
         binary_name: "ossint"
-        extra_files: LICENSE README.md
+        extra_files: README.md
