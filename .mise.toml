@@ -1,2 +1,15 @@
+[settings]
+experimental = true
+
 [tools]
 go = "1.22"
+
+[tasks.check]
+description = "Check releaser"
+run = "goreleaser check"
+dir = "."
+
+[tasks.lbuild]
+description = "Build local"
+run = "goreleaser release --snapshot --clean"
+dir = "."
