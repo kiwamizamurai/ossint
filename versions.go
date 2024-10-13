@@ -1,5 +1,5 @@
 package ossint
 
-const version = "0.1.0"
+const version = "0.3.0"
 
 var revision = "HEAD"
