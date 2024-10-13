@@ -46,7 +46,7 @@ changelog:
       - "^docs:"
       - "^test:"
 brews:
-  - tap:
+  - repository:
       owner: kiwamizamurai
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
