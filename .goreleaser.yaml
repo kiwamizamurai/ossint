@@ -50,6 +50,5 @@ brews:
       owner: kiwamizamurai
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
-    folder: Formula
     homepage: https://github.com/kiwamizamurai/ossint
     description: A tool OSINT for Github OSS
